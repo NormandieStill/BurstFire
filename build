@@ -1,0 +1,10 @@
+cc_library(
+    name = "",
+    srcs = [
+        "src/",
+    ],
+    includes = [
+        "src",
+    ],
+    visibility = ["//visibility:public"],
+)
