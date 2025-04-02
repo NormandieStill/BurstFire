@@ -45,13 +45,24 @@ BurstFire::BurstFire(uint8_t ssrPin){
   recalulateFrames(0);
 }
 
-/*
- * Needs to be called in every loop().
- */
-void BurstFire::run(){
-  if (_outputActive){
-  }
+BurstFire::BurstFire(uint8_t ssrPin, bool invertOutput) : BurstFire(ssrPin) {
+  _invertOutput = invertOutput;
 }
+
+/*
+ * Set the flag for inverting output
+ */
+void BurstFire::setInvertOutput(bool invertOutput){
+  _invertOutput = invertOutput;
+}
+
+/*
+ * Get the flag for inverting output
+ */
+bool BurstFire::getInvertOutput(){
+  return _invertOutput;
+}
+
 
 /*
  * Recalculate the frames that should be on in order to reach the given
@@ -98,10 +109,6 @@ bool BurstFire::isFrameOn(uint16_t frameNum, uint8_t * burstFirePatterns){
    */
   uint8_t i = 0;
   while (burstFirePatterns[i] != 0 && frameNum % product(burstFirePatterns, i) == 0 && i < MAX_RECURSIONS){
-    //DEBUG
-    if (frameNum==29){
-      Serial.println(i);
-    }
     i++;
   }
   if (i % 2 == 0){
@@ -132,13 +139,20 @@ int BurstFire::product(uint8_t * arr, uint8_t maxIndex){
 void BurstFire::zeroCross(){
     digitalWrite(_ssrPin, _nextFrame);
     if (isFrameOn(_currFrame + 1, _burstFirePatterns)){
-      _nextFrame = 1;
+      if (!_invertOutput){
+        _nextFrame = 1;
+      }else{
+        _nextFrame = 0;
+      }
     }else{
-      _nextFrame = 0;
+      if (!_invertOutput){
+        _nextFrame = 0;
+      }else{
+        _nextFrame = 1;
+      }
     }
     _currFrame++;
     if (_currFrame > FRAMES){
-      Serial.println();
       _currFrame = 1;
     }
 }
