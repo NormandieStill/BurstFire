@@ -35,6 +35,7 @@ const uint16_t _potReadInterval = 500; // update the pot twice per second
 
 volatile bool zeroCrossTrigger = false;
 BurstFire bf(_ssrPin, true);
+uint8_t targetPer;
 long zeroCrossTime;
 long lastZeroCrossTime;
 long potReadTime;
@@ -49,7 +50,7 @@ void setup() {
   attachInterrupt(digitalPinToInterrupt(_zeroCrossPin), _zeroCrossISR, FALLING);
 
   readTargetPercentage();
-  bf.recalulateFrames(variables.targetPer);
+  bf.recalulateFrames(targetPer);
   zeroCrossTime = millis();
 }
 
@@ -76,9 +77,9 @@ void readTargetPercentage(){
   if (abs(millis() - potReadTime) > _potReadInterval){
     long potVal = analogRead(_potPin);
     uint8_t newTarget = (uint8_t) map(potVal, 0, 1023, 0, 100);
-    if (newTarget != variables.targetPer){
-      variables.targetPer = newTarget;
-      bf.recalulateFrames(variables.targetPer);
+    if (newTarget != targetPer){
+      targetPer = newTarget;
+      bf.recalulateFrames(targetPer);
     }
     potReadTime = millis();
   }
