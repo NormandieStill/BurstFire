@@ -1,5 +1,5 @@
 /*
- * burstfire.c
+ * burstfire.cpp
  * 
  * Copyright 2025 NormandieStill <normandiestill@gmail.com>
  * 
@@ -34,14 +34,18 @@
 #include <stdlib.h>
 #include <stdbool.h>
 
-#include "Arduino.h"
+//#include "Arduino.h"
+#ifndef BurstFire_h
 #include "BurstFire.h"
+#endif
 
 BurstFire::BurstFire(uint8_t ssrPin){
   _ssrPin = ssrPin;
-  _burstFirePatterns = (uint8_t*) malloc(MAX_RECURSIONS * sizeof(uint8_t));
+  _burstFirePatterns = (int16_t*) malloc(MAX_RECURSIONS * sizeof(int16_t));
   _currFrame = 1;
+#ifndef BF_DEBUG
   pinMode(_ssrPin, OUTPUT); //Setup SSR output pin 
+#endif
   recalulateFrames(0);
 }
 
@@ -71,11 +75,11 @@ bool BurstFire::getInvertOutput(){
 void BurstFire::recalulateFrames(uint8_t targetPercentage){
   _targetPercentage = targetPercentage;
   /* Setup the variables for running the recursion */
-  uint16_t* moddedFrames = (uint16_t*) malloc((MAX_RECURSIONS + 1) * sizeof(uint16_t));
+  int16_t* moddedFrames = (int16_t*) malloc((MAX_RECURSIONS + 1) * sizeof(int16_t));
   moddedFrames[0] = FRAMES;
   uint8_t recursionDepth = 0;
-  uint8_t curError = _targetPercentage;
-  uint8_t calculatedPercentage = 0;
+  int16_t curError = _targetPercentage;
+  int16_t calculatedPercentage = 0;
   // Repeat until we hit maximum depth or the target percentage
   while (curError != 0 && recursionDepth < MAX_RECURSIONS){
     calculateFramesRecursion(_targetPercentage, &curError, &calculatedPercentage, recursionDepth, _burstFirePatterns, moddedFrames);
@@ -87,13 +91,16 @@ void BurstFire::recalulateFrames(uint8_t targetPercentage){
     recursionDepth++;
   }
   free(moddedFrames);
+#ifdef BF_DEBUG
+  printFrames();
+#endif
  }
 
 
 /*
  * Recursion code to calculate the next set of frame mods.
  */
-void BurstFire::calculateFramesRecursion(uint8_t targetPer, uint8_t* currError, uint8_t* calculatedPercentage, uint8_t recursionDepth, uint8_t* burstFirePatterns, uint16_t* moddedFrames){
+void BurstFire::calculateFramesRecursion(uint8_t targetPer, int16_t* currError, int16_t* calculatedPercentage, uint8_t recursionDepth, int16_t* burstFirePatterns, int16_t* moddedFrames){
   burstFirePatterns[recursionDepth] = moddedFrames[recursionDepth] / * currError;
   moddedFrames[recursionDepth + 1] = moddedFrames[recursionDepth] / burstFirePatterns[recursionDepth];
   *calculatedPercentage += moddedFrames[recursionDepth + 1];
@@ -103,7 +110,7 @@ void BurstFire::calculateFramesRecursion(uint8_t targetPer, uint8_t* currError, 
 /*
  * Calculates if a given frame should be on. Frame number is indexed from 1 to FRAMES inclusive.
  */
-bool BurstFire::isFrameOn(uint16_t frameNum, uint8_t * burstFirePatterns){
+bool BurstFire::isFrameOn(uint16_t frameNum, int16_t * burstFirePatterns){
   /*
    * Method:
    */
@@ -122,7 +129,7 @@ bool BurstFire::isFrameOn(uint16_t frameNum, uint8_t * burstFirePatterns){
  * Calculate the product of the contents of an int array starting from 0 and continuing until maxIndex.
  * THIS IS NOT SAFE AND WILL OVERFLOW IF ALLOWED.
  */
-int BurstFire::product(uint8_t * arr, uint8_t maxIndex){
+int BurstFire::product(int16_t * arr, uint8_t maxIndex){
   long result = 1;
   for (int i=0;i <= maxIndex; i++){
     result *= arr[i];
@@ -133,11 +140,49 @@ int BurstFire::product(uint8_t * arr, uint8_t maxIndex){
   return (int) result;
 }
 
+#ifdef BF_DEBUG
+/*
+ * Debug print of the current set of frames
+ */
+void BurstFire::printFrames(){
+  std::cout << "Frames for target percentage: " << + _targetPercentage << std::endl;
+  for (int n = 1; n <= FRAMES; n++){
+    if (isFrameOn(n, _burstFirePatterns)){
+      std::cout << "1, ";
+    }else{
+      std::cout << "0, ";
+    }
+  }
+  std::cout << std::endl;
+  std::cout.flush();
+}
+
+/*
+ * Test harness for Burstfire library
+ */
+
+int main(){
+  std::cout << "Testing BurstFire library with series of control percentages" << std::endl;
+  BurstFire bf((uint8_t) 0, false);
+//  bf.recalulateFrames((uint8_t) 0);
+  bf.recalulateFrames((uint8_t)37);
+  bf.recalulateFrames((uint8_t)50);
+  bf.recalulateFrames((uint8_t)63);
+  bf.recalulateFrames((uint8_t)75);
+  bf.recalulateFrames((uint8_t)99);
+  bf.recalulateFrames((uint8_t)100);
+}
+
+#endif
+
+
 /*
  * Zero cross event occurred so update the output pin
  */
 void BurstFire::zeroCross(){
+#ifndef BF_DEBUG
     digitalWrite(_ssrPin, _nextFrame);
+#endif
     if (isFrameOn(_currFrame + 1, _burstFirePatterns)){
       if (!_invertOutput){
         _nextFrame = 1;
